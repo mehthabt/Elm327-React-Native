@@ -231,7 +231,13 @@ export default class NrfUartTest extends Component {
   renderHeader() {
     return (
       <View style={{padding: 10}}>
-
+        <Button 
+        style={{marginTop: 100}}
+        onPress={() => {
+            this.props.sendUart();
+          }}
+        title={'Try send uart'}
+        />
         <ListDevices devicesToList = {this.state.devices} />
       </View>
     );
