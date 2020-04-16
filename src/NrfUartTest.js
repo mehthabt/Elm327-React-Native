@@ -54,78 +54,6 @@ const ListDevices = function(props) {
   }
 };
 
-const ProductWithinRange = function(props) {
-  const {device, ...restProps} = props;
-
-  if (device !== undefined && Number(device.rssi) >= RSSI_THRESHHOLD)
-  {
-    if (device.name === 'BlueUp-01-024238') {
-         return(<View><ProductOne/></View>);
-    }
-    else if (device.name === 'BlueUp-02-025476') {
-        return(<View><ProductTwo/></View>);
-    }
-  } else
-  {
-    return (<View><IdleView/></View>);
-  }
-};
-
-
-const IdleView = function(props) {
-    return (
-    <View style={{flex: 1, paddingTop: 100}}>
-    <Image
-        style={styles.tinyLogo}
-        source={require('./static/thomsen_logo.jpg')}
-        />
-    <View style={{flex: 2, paddingTop: 20}} />
-      <Text style={styles.productTextStyle} numberOfLines={2}>
-          Närma dig en monter för att få mer information.
-        </Text>
-    </View>
-  );
-};
-
-const ProductOne = function(props) {
-  return (
-    <View style={{flex: 1, paddingTop: 100}}>
-    <Image
-        style={styles.tinyLogo}
-        source={require('./static/lars_wallin_logo.jpg')}
-        />
-    <View style={{flex: 2, paddingTop: 20}} />
-      <Text style={styles.productTextStyle} numberOfLines={1}>
-          Lars Wallin.
-        </Text>
-        <Text style={styles.productDescriptionStyle} >
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque ac viverra augue, sit amet commodo nulla. Proin risus arcu, elementum id elit vel, pellentesque iaculis nibh. Cras et mauris rutrum, condimentum sem in, molestie tortor. Sed non laoreet lectus, eget aliquam ex. Integer varius, elit vel auctor pulvinar, tortor quam semper diam, vehicula mattis odio sem vel ex. Etiam eros urna, mattis egestas finibus volutpat, porttitor ullamcorper est. Donec faucibus neque massa, condimentum fermentum nulla scelerisque vel. Etiam lacus erat, tristique vitae tristique a, eleifend at odio. Nam consequat est gravida, ultricies ante a, hendrerit orci. Nulla faucibus lectus ipsum, in aliquet eros varius non.
-        </Text>
-    </View>
-  );
-};
-
-const ProductTwo = function(props) {
-
-  return (
-    <View style={{flex: 1, paddingTop: 100}}>
-    <Image
-        style={styles.tinyLogo}
-        source={require('./static/tatiana_faberge_logo.png')}
-        />
-    <View style={{flex: 2, paddingTop: 20}} />
-      <Text style={styles.productTextStyle} numberOfLines={1}>
-          Tatiana Fabege.
-        </Text>
-        <Text style={styles.productDescriptionStyle} >
-          Morbi nec placerat felis, scelerisque dignissim arcu. Nulla tempor ante ac erat dignissim, vitae maximus lorem mattis. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Pellentesque ut hendrerit ipsum. Nam accumsan malesuada sem, vitae blandit est egestas non. Integer ac odio in augue sagittis varius. Etiam sagittis ullamcorper velit ut lacinia. Fusce ut felis vitae orci pulvinar congue. Vivamus cursus ligula in dolor iaculis, pharetra ultrices ex pulvinar. Sed maximus fringilla turpis eu congue. Duis a vehicula mauris, nec pulvinar diam.
-        </Text>
-    </View>
-  );
-};
-
-
-
 type Props = {
   sensorTag: ?Device,
   connectionState: $Keys<typeof ConnectionState>,
@@ -143,7 +71,7 @@ type State = {
   showModal: boolean,
 };
 
-export default class ThomsenBeaconProductDisplay extends Component {
+export default class NrfUartTest extends Component {
   constructor(props: Props) {
     super(props);
     this.manager = new BleManager()
@@ -300,35 +228,9 @@ export default class ThomsenBeaconProductDisplay extends Component {
     });
   }
 
-
-  sensorTagProductNumber(): string {
-    if (this.props.sensorTag != null && this.props.sensorTag.localName === 'BlueUp-01-024238') {
-          return 'Product One';
-        }
-
-    if (this.props.sensorTag != null && this.props.sensorTag.rssi < RSSI_THRESHHOLD && this.props.sensorTag.localName === 'BlueUp-02-025476') {
-          return 'Product Two';
-        }
-  }
-
-  getProductWithinRange(): boolean {
-    return (this.props.sensorTag != null  && this.props.sensorTag.rssi > RSSI_THRESHHOLD && this.props.sensorTag.localName === 'BlueUp-01-024238');
-  }
-
-  isProductTwo(): boolean {
-    return (this.props.sensorTag != null  && this.props.sensorTag.rssi > RSSI_THRESHHOLD && this.props.sensorTag.localName === 'BlueUp-02-025476');
-  }
-
-  isNoProduct(): boolean {
-    return (this.props.sensorTag == null ||  this.props.sensorTag.rssi < RSSI_THRESHHOLD || (this.props.sensorTag.localName != 'BlueUp-01-024238' && this.props.sensorTag.localName != 'BlueUp-02-025476') );
-  }
-
-
   renderHeader() {
     return (
       <View style={{padding: 10}}>
-
-        <ProductWithinRange device={this.getDeviceWithHighestRSSI(this.state.devices)} />
 
         <ListDevices devicesToList = {this.state.devices} />
       </View>

@@ -1,10 +1,10 @@
 // @flow
 
 import React from 'react';
-import ThomsenBeaconProductDisplay from './ThomsenBeaconProductDisplay';
+import NrfUartTest from './NrfUartTest';
 
 export default function App() {
   return (
-      <ThomsenBeaconProductDisplay />
+      <NrfUartTest />
   );
 }
