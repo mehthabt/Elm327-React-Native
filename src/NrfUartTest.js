@@ -54,6 +54,40 @@ const ListDevices = function(props) {
   }
 };
 
+const ListUartTraffic = function(props) {
+  const {messagesToList, ...restProps} = props;
+
+  if (messagesToList === undefined)
+  {
+    return (<View />);
+  }
+  else {
+    return (
+    <View style={{flex: 2, paddingTop: 400}} >
+    { messagesToList.map( (message,i) => <Text key={i} style={styles.productTextStyle} numberOfLines={1}>{message}</Text>)}
+    </View>
+  );
+  }
+};
+
+
+const DisplayInfo = function(props) {
+  const {infoString, ...restProps} = props;
+
+  if (infoString === undefined)
+  {
+    return (<View />);
+  }
+  else {
+    return (
+    <View style={{flex: 2, paddingTop: 200}} >
+      <Text style={styles.productTextStyle} numberOfLines={1}>{infoString}</Text>
+    </View>
+  );
+  }
+};
+
+
 type Props = {
   sensorTag: ?Device,
   connectionState: $Keys<typeof ConnectionState>,
@@ -79,6 +113,15 @@ export default class NrfUartTest extends Component {
     this.prefixUUID = "f000aa"
     this.suffixUUID = "-0451-4000-b000-000000000000"
     this.devices = [{}];
+    this.uartMessages = [];
+    this.sensors = {
+      0: "Temperature",
+      1: "Accelerometer",
+      2: "Humidity",
+      3: "Magnetometer",
+      4: "Barometer",
+      5: "Gyroscope"
+    }
   }
 
   checkIfDeviceExists (devices, device) {
@@ -145,10 +188,36 @@ export default class NrfUartTest extends Component {
     this.setState({values: {...this.state.values, [key]: value}})
   }
 
-  sensorTagRSSI(): string {
-    if (this.props.sensorTag) {
-          return 'RSSI: ' + this.props.sensorTag.rssi;
+  serviceUUID(num) {
+    return this.prefixUUID + num + "0" + this.suffixUUID
+  }
+
+  notifyUUID(num) {
+    return this.prefixUUID + num + "1" + this.suffixUUID
+  }
+
+  writeUUID(num) {
+    return this.prefixUUID + num + "2" + this.suffixUUID
+  }
+
+  async setupNotifications(device) {
+    for (const id in this.sensors) {
+      const service = this.serviceUUID(id)
+      const characteristicW = this.writeUUID(id)
+      const characteristicN = this.notifyUUID(id)
+
+      const characteristic = await device.writeCharacteristicWithResponseForService(
+        service, characteristicW, "AQ==" /* 0x01 in hex */
+      )
+
+      device.monitorCharacteristicForService(service, characteristicN, (error, characteristic) => {
+        if (error) {
+          this.error(error.message)
+          return
         }
+        this.updateValue(characteristic.uuid, characteristic.value)
+      })
+    }
   }
 
  componentDidMount() {
@@ -184,14 +253,11 @@ export default class NrfUartTest extends Component {
           var infoString = "a";
           var tmpDevice = null;
 
+          //console.log(device.name);
+
           switch(device.name) {
-            case 'BlueUp-01-024238':
+            case 'Logger1':
                tmpDevice ={ name:device.name,
-                         rssi:device.rssi,
-                       };
-              break;
-            case 'BlueUp-02-025476':
-              tmpDevice ={ name:device.name,
                          rssi:device.rssi,
                        };
               break;
@@ -220,10 +286,34 @@ export default class NrfUartTest extends Component {
             {
               devices.push(tmpDevice);
               this.setState({devices: devices})
+
+              // stopping scan here
+              this.manager.stopDeviceScan()
+
+              device.connect()
+              .then((device) => {
+                console.log('discovering')
+                this.info("Discovering services and characteristics")
+                return device.discoverAllServicesAndCharacteristics()
+              })
+              .then((device) => {
+                console.log('Setting notification')
+                this.info("Setting notifications")
+                return this.setupNotifications(device)
+              })
+              .then(() => {
+                console.log('Listening...')
+                this.info("Listening...")
+              }, (error) => {
+                this.error(error.message)
+              })
+
+
             }
           }
+
         }
-        //this.manager.stopDeviceScan()
+        
       }
     });
   }
@@ -238,6 +328,13 @@ export default class NrfUartTest extends Component {
           }}
         title={'Try send uart'}
         />
+        <DisplayInfo info = {this.state.info} />
+        {Object.keys(this.sensors).map((key) => {
+          return <Text key={key}>
+                   {this.sensors[key] + ": " + (this.state.values[this.notifyUUID(key)] || "-")}
+                 </Text>
+        })}
+        <ListUartTraffic messagesToList = {this.state.uartMessages} />
         <ListDevices devicesToList = {this.state.devices} />
       </View>
     );
@@ -245,7 +342,7 @@ export default class NrfUartTest extends Component {
 
   render() {
     return (
-      <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="#5a070f" />
         {this.renderHeader()}
       </SafeAreaView>
@@ -256,7 +353,7 @@ export default class NrfUartTest extends Component {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#6e6e6e',
     padding: 5,
   },
   textStyle: {
