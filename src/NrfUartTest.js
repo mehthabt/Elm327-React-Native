@@ -4,6 +4,7 @@ import React, {Component} from 'react';
 import { Image } from 'react-native';
 import {connect as reduxConnect} from 'react-redux';
 import { BleManager } from 'react-native-ble-plx';
+import { Buffer } from "buffer";
 import {
   Platform,
   StyleSheet,
@@ -105,23 +106,25 @@ type State = {
   showModal: boolean,
 };
 
+const uartServiceUUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+const uartTXCharacteristicUUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+const uartRXCharacteristicUUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+
+const bufferdata = Buffer.from("L=admin", "base64");
+
 export default class NrfUartTest extends Component {
   constructor(props: Props) {
     super(props);
     this.manager = new BleManager()
     this.state = {info: "", values: {}}
-    this.prefixUUID = "f000aa"
-    this.suffixUUID = "-0451-4000-b000-000000000000"
     this.devices = [{}];
+    this.device = null;
     this.uartMessages = [];
-    this.sensors = {
-      0: "Temperature",
-      1: "Accelerometer",
-      2: "Humidity",
-      3: "Magnetometer",
-      4: "Barometer",
-      5: "Gyroscope"
-    }
+
+    this.sendUart = this.sendUart.bind(this)
+
+
+
   }
 
   checkIfDeviceExists (devices, device) {
@@ -174,7 +177,7 @@ export default class NrfUartTest extends Component {
         }
       });
       return tmpDevices;
-  } 
+  }
 
   info(message) {
     this.setState({info: message})
@@ -185,7 +188,12 @@ export default class NrfUartTest extends Component {
   }
 
   updateValue(key, value) {
+    console.log("update value:", value);
     this.setState({values: {...this.state.values, [key]: value}})
+  }
+
+  updateDevice(device) {
+    this.setState({device: device});
   }
 
   serviceUUID(num) {
@@ -200,24 +208,43 @@ export default class NrfUartTest extends Component {
     return this.prefixUUID + num + "2" + this.suffixUUID
   }
 
-  async setupNotifications(device) {
-    for (const id in this.sensors) {
-      const service = this.serviceUUID(id)
-      const characteristicW = this.writeUUID(id)
-      const characteristicN = this.notifyUUID(id)
+  async sendUart() {
 
+    if(this.device === null)
+      return;
+
+    console.log('loginDevice')
+
+    const loginData = Buffer.from("L=admin").toString('base64')
+    console.log("loginData",loginData);
+
+    this.manager.writeCharacteristicWithResponseForDevice(
+      this.device.id,
+      uartServiceUUID,
+      uartRXCharacteristicUUID,
+      loginData
+    ).then((res) => {
+      console.log(`WRITE RES ${res}`)
+      console.log("write res", res.message);
+    }).catch((error) => {
+      console.log("write error", error.message);
+      console.log(`WRITE ERROR ${error}`)
+    })
+  }
+
+  async setupNotifications(device) {
       const characteristic = await device.writeCharacteristicWithResponseForService(
-        service, characteristicW, "AQ==" /* 0x01 in hex */
+        uartServiceUUID, uartTXCharacteristicUUID, "AQ==" /* 0x01 in hex */
       )
 
       device.monitorCharacteristicForService(service, characteristicN, (error, characteristic) => {
         if (error) {
+          console.log("error",error.message);
           this.error(error.message)
           return
         }
         this.updateValue(characteristic.uuid, characteristic.value)
       })
-    }
   }
 
  componentDidMount() {
@@ -290,6 +317,8 @@ export default class NrfUartTest extends Component {
               // stopping scan here
               this.manager.stopDeviceScan()
 
+              this.device = device;
+
               device.connect()
               .then((device) => {
                 console.log('discovering')
@@ -306,7 +335,13 @@ export default class NrfUartTest extends Component {
                 this.info("Listening...")
               }, (error) => {
                 this.error(error.message)
+              }) 
+              .then((dev) => {
+                console.log("success to connect")
               })
+              .catch((error) => {
+                console.log("connect error:" + error)
+              });
 
 
             }
@@ -324,18 +359,15 @@ export default class NrfUartTest extends Component {
         <Button 
         style={{marginTop: 100}}
         onPress={() => {
-            this.props.sendUart();
+            this.sendUart();
           }}
         title={'Try send uart'}
         />
         <DisplayInfo info = {this.state.info} />
-        {Object.keys(this.sensors).map((key) => {
-          return <Text key={key}>
-                   {this.sensors[key] + ": " + (this.state.values[this.notifyUUID(key)] || "-")}
-                 </Text>
-        })}
+        <Text> {this.device != null ? this.device.name : "noo"}</Text>
         <ListUartTraffic messagesToList = {this.state.uartMessages} />
         <ListDevices devicesToList = {this.state.devices} />
+
       </View>
     );
   }
