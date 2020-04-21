@@ -5,6 +5,7 @@ import { Image } from 'react-native';
 import {connect as reduxConnect} from 'react-redux';
 import { BleManager } from 'react-native-ble-plx';
 import { Buffer } from "buffer";
+
 import {
   Platform,
   StyleSheet,
@@ -110,7 +111,7 @@ const uartServiceUUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 const uartTXCharacteristicUUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 const uartRXCharacteristicUUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
-const bufferdata = Buffer.from("L=admin", "base64");
+const loginStringBytes = Buffer.from("L=admin", "base64");
 
 export default class NrfUartTest extends Component {
   constructor(props: Props) {
@@ -188,7 +189,8 @@ export default class NrfUartTest extends Component {
   }
 
   updateValue(key, value) {
-    console.log("update value:", value);
+    const readebleData = Buffer.from(value, 'base64').toString('ascii');
+    console.log("received value:", readebleData);
     this.setState({values: {...this.state.values, [key]: value}})
   }
 
@@ -215,34 +217,34 @@ export default class NrfUartTest extends Component {
 
     console.log('loginDevice')
 
-    const loginData = Buffer.from("L=admin").toString('base64')
-    console.log("loginData",loginData);
+    const loginBytes = Buffer.from("L=admin").toString('base64');
+    console.log("loginData",loginBytes);
 
-    this.manager.writeCharacteristicWithResponseForDevice(
+    this.manager.writeCharacteristicWithoutResponseForDevice(
       this.device.id,
       uartServiceUUID,
       uartRXCharacteristicUUID,
-      loginData
+      loginBytes
     ).then((res) => {
       console.log(`WRITE RES ${res}`)
-      console.log("write res", res.message);
     }).catch((error) => {
-      console.log("write error", error.message);
       console.log(`WRITE ERROR ${error}`)
     })
   }
 
   async setupNotifications(device) {
-      const characteristic = await device.writeCharacteristicWithResponseForService(
-        uartServiceUUID, uartTXCharacteristicUUID, "AQ==" /* 0x01 in hex */
-      )
 
-      device.monitorCharacteristicForService(service, characteristicN, (error, characteristic) => {
+
+      device.monitorCharacteristicForService(
+        uartServiceUUID,
+        uartTXCharacteristicUUID,
+        (error, characteristic) => {
         if (error) {
           console.log("error",error.message);
           this.error(error.message)
           return
         }
+        console.log("received tx value");
         this.updateValue(characteristic.uuid, characteristic.value)
       })
   }
