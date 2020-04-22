@@ -45,12 +45,32 @@ const ListDevices = function(props) {
 
   if (devicesToList === undefined)
   {
-    return (<View />);
+    return (<View {...restProps}>
+    <Text style={styles.productTextStyle}>No Device</Text>
+    </View>);
   }
   else {
     return (
-    <View style={{flex: 2, paddingTop: 400}} >
+    <View {...restProps} >
     { devicesToList.map( (item,i) => <Text key={i} style={styles.productTextStyle} numberOfLines={1}>{item.name} {item.rssi}</Text>)}
+    </View>
+  );
+  }
+};
+
+const ListData = function(props) {
+  const {dataToList, ...restProps} = props;
+
+  if (dataToList === undefined || dataToList.length === 0)
+  {
+    return (<View {...restProps}>
+    <Text style={styles.productTextStyle} >No Data</Text>
+    </View>);
+  }
+  else {
+    return (
+    <View {...restProps} >
+    { dataToList.map( (item,i) => <Text key={i} style={styles.productTextStyle} numberOfLines={1}>{item}</Text>)}
     </View>
   );
   }
@@ -61,7 +81,7 @@ const ListUartTraffic = function(props) {
 
   if (messagesToList === undefined)
   {
-    return (<View />);
+    return (<View> <Text>nada </Text> </View> );
   }
   else {
     return (
@@ -113,6 +133,8 @@ const uartRXCharacteristicUUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
 const loginStringBytes = Buffer.from("L=admin", "base64");
 
+
+
 export default class NrfUartTest extends Component {
   constructor(props: Props) {
     super(props);
@@ -121,11 +143,31 @@ export default class NrfUartTest extends Component {
     this.devices = [{}];
     this.device = null;
     this.uartMessages = [];
+    this.fifo = [];
+    this.fifoSizeLimit = 3;
 
     this.sendUart = this.sendUart.bind(this)
+  }
 
+  fifoInit(size)
+  {
+    this.fifo = [];
+    this.fifoSizeLimit = size;
+  }
 
+  fifoPushItem(item)
+  {
+    if(this.fifo.length >= this.fifoSizeLimit) 
+    {
+      this.fifo.shift();
+    }
 
+    this.fifo.push(item);
+  }
+
+  fifoGetItems()
+  {
+    return this.fifo;
   }
 
   checkIfDeviceExists (devices, device) {
@@ -191,6 +233,7 @@ export default class NrfUartTest extends Component {
   updateValue(key, value) {
     const readebleData = Buffer.from(value, 'base64').toString('ascii');
     console.log("received value:", readebleData);
+    this.fifoPushItem(readebleData);
     this.setState({values: {...this.state.values, [key]: value}})
   }
 
@@ -209,6 +252,36 @@ export default class NrfUartTest extends Component {
   writeUUID(num) {
     return this.prefixUUID + num + "2" + this.suffixUUID
   }
+
+  async testFifo() {
+
+    console.log("test fifo");
+
+
+    console.log("test fifo");
+    this.fifoPushItem(1);
+    this.fifoPushItem(2);
+    this.fifoPushItem(3);
+    var items = fifoGetItems();
+    console.log("should be 1,2,3",items);
+    this.fifoPushItem(4);
+    items = fifoGetItems();
+    console.log("should be 2,3,4",items);
+
+  }
+
+  listUartData() {
+    var items = this.fifoGetItems();
+
+    if (items !== undefined) 
+    {
+      return items;
+    }
+    else {
+      return [];
+    }
+  }
+
 
   async sendUart() {
 
@@ -247,9 +320,12 @@ export default class NrfUartTest extends Component {
         console.log("received tx value");
         this.updateValue(characteristic.uuid, characteristic.value)
       })
-  }
+  } 
 
  componentDidMount() {
+
+    this.fifoInit(4);
+
     if (Platform.OS === 'ios') {
       this.manager.onStateChange((state) => {
         if (state === 'PoweredOn')
@@ -285,7 +361,7 @@ export default class NrfUartTest extends Component {
           //console.log(device.name);
 
           switch(device.name) {
-            case 'Logger1':
+            case 'ECU_BLE_BRIDGE':
                tmpDevice ={ name:device.name,
                          rssi:device.rssi,
                        };
@@ -359,16 +435,17 @@ export default class NrfUartTest extends Component {
     return (
       <View style={{padding: 10}}>
         <Button 
-        style={{marginTop: 100}}
+        style={{marginTop: 50}}
         onPress={() => {
-            this.sendUart();
+            this.testFifo();
           }}
         title={'Try send uart'}
         />
         <DisplayInfo info = {this.state.info} />
         <Text> {this.device != null ? this.device.name : "noo"}</Text>
-        <ListUartTraffic messagesToList = {this.state.uartMessages} />
-        <ListDevices devicesToList = {this.state.devices} />
+
+        <ListDevices  style={{marginTop: 50}} devicesToList = {this.state.devices} />
+        <ListData style={{marginTop: 150}} dataToList = {this.fifoGetItems()} />
 
       </View>
     );
