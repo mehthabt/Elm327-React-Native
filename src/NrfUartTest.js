@@ -324,7 +324,7 @@ export default class NrfUartTest extends Component {
 
  componentDidMount() {
 
-    this.fifoInit(4);
+    this.fifoInit(5);
 
     if (Platform.OS === 'ios') {
       this.manager.onStateChange((state) => {
